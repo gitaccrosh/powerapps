@@ -1,0 +1,20 @@
+# Create a new storage container if it doesn't already exist
+$container = Get-AzStorageContainer -Name $containerName -Context (Get-AzStorageAccountKey -ResourceGroupName $resourceGroupName -AccountName $storageAccountName) -ErrorAction SilentlyContinue
+if ($container -eq $null) {
+    New-AzStorageContainer -Name $containerName -Context (Get-AzStorageAccountKey -ResourceGroupName $resourceGroupName -AccountName $storageAccountName)
+}
+
+# Create the SAS token
+$sasToken = New-AzStorageContainerSASToken -Name $containerName -Context (Get-AzStorageAccountKey -ResourceGroupName $resourceGroupName -AccountName $storageAccountName) -Permission $permissions -ExpiryTime $expiry
+
+# Construct the SAS URI for the container
+$sasContainerUri = "https://$storageAccountName.blob.core.windows.net/$containerName$($sasToken)"
+
+# Output the SAS URI for the container
+Write-Host "Container SAS URI: $sasContainerUri"
+
+# Construct the SAS URI for a specific blob (optional)
+$sasBlobUri = "$sasContainerUri/$blobName"
+
+# Output the SAS URI for the specific blob (optional)
+Write-Host "Blob SAS URI: $sasBlobUri"

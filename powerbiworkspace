@@ -1,0 +1,51 @@
+# Define your Azure Blob Storage and Power BI details
+$resourceGroup = "YourResourceGroup"
+$storageAccountName = "YourStorageAccount"
+$containerName = "YourContainer"
+$csvFileName = "YourCSVFile.csv"
+$powerBIAPIUrl = "https://api.powerbi.com/v1.0/myorg"
+$powerBIClientId = "YourPowerBIClientId"
+$powerBIAppSecret = "YourPowerBIAppSecret"
+$powerBIAPIResource = "https://analysis.windows.net/powerbi/api"
+$powerBIAuthority = "https://login.microsoftonline.com/YourTenantId"
+
+# Define the Service Principal details
+$servicePrincipalAppId = "YourServicePrincipalAppId"
+$servicePrincipalAppSecret = "YourServicePrincipalAppSecret"
+$servicePrincipalTenantId = "YourTenantId"
+
+# Authenticate using the Service Principal
+$tokenParams = @{
+    Resource = $powerBIAPIResource
+    ClientId = $servicePrincipalAppId
+    ClientSecret = $servicePrincipalAppSecret
+    TenantId = $servicePrincipalTenantId
+    Authority = $powerBIAuthority
+}
+
+$tokenResponse = Invoke-AzureRmRestMethod -Method POST -Uri "https://login.microsoftonline.com/$servicePrincipalTenantId/oauth2/token" -Body $tokenParams
+$token = $tokenResponse.Content | ConvertFrom-Json
+
+# Upload CSV to Power BI as a dataset
+$uploadParams = @{
+    AccessToken = $token.access_token
+    CsvFileName = $csvFileName
+    DestinationFile = "YourDestinationDatasetName"
+}
+
+Invoke-RestMethod -Method POST -Uri "$powerBIAPIUrl/datasets?defaultRetentionPolicy=basic" -Headers @{ Authorization = "Bearer $($token.access_token)" } -Body $uploadParams -OutFile $csvFileName
+
+# Import the dataset into Power BI
+$importParams = @{
+    AccessToken = $token.access_token
+    Name = "YourDatasetName"
+    FileSource = "External"
+    FilePath = $csvFileName
+    TableName = "YourTableName"
+    IsPublic = $true
+}
+
+Invoke-RestMethod -Method POST -Uri "$powerBIAPIUrl/groups/YourWorkspaceId/imports" -Headers @{ Authorization = "Bearer $($token.access_token)" } -Body $importParams
+
+# Clean up the CSV file if needed
+Remove-Item $csvFileName
